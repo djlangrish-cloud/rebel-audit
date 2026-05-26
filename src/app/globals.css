@@ -1,0 +1,15 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@700;800&family=Inter:wght@400;500;600&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --rebel-black: #0c0c0c;
+  --rebel-red: #e74c3c;
+  --rebel-darkred: #c0392b;
+  --rebel-yellow: #EAEE72;
+  --rebel-white: #FFFFFF;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--rebel-black); color: var(--rebel-white); font-family: 'Inter', sans-serif; }
