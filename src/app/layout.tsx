@@ -11,6 +11,9 @@ export const metadata: Metadata = {
     icon: 'https://rebelmarketer.co.uk/wp-content/uploads/2025/09/R.png',
     apple: 'https://rebelmarketer.co.uk/wp-content/uploads/2025/09/R.png',
   },
+  verification: {
+    google: 'jEHJN_ohekqscWRrtV9P_cGOmHZg4q5zy7lSgkTdut4',
+  },
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
