@@ -49,7 +49,14 @@ function extractBodyText($: cheerio.CheerioAPI): string {
 // ── TECHNICAL ─────────────────────────────────────────────────────────────────
 // HTTPS, noindex, canonical, robots.txt, sitemap — from MEMENTO + RAMBO
 
-async function scoreTechnical(url: string, $: cheerio.CheerioAPI): Promise<{ score: number; checks: Check[] }> {
+interface MaverickData {
+  rawWordCount: number
+  renderedWordCount: number
+  rawH1: boolean
+  rawSchema: boolean
+}
+
+async function scoreTechnical(url: string, $: cheerio.CheerioAPI, maverick?: MaverickData): Promise<{ score: number; checks: Check[] }> {
   const checks: Check[] = []
   let score = 0
   const origin = new URL(url).origin
@@ -136,6 +143,28 @@ async function scoreTechnical(url: string, $: cheerio.CheerioAPI): Promise<{ sco
     }
   } catch {
     checks.push(makeCheck('sitemap.xml', 'needs_work', 'Could not check sitemap.xml.', 'Make sure /sitemap.xml is publicly accessible.'))
+  }
+
+  // 6. Page rendering (MAVERICK — only present when Browserless rendered HTML is available)
+  if (maverick) {
+    const issues: string[] = []
+    const renderedH1 = $('h1').length > 0
+    const renderedSchema = $('script[type="application/ld+json"]').length > 0
+    if (maverick.rawWordCount < 100 && maverick.renderedWordCount > 300) issues.push('Page content is JavaScript-rendered')
+    if (!maverick.rawH1 && renderedH1) issues.push('H1 tag is JavaScript-rendered and not in the raw HTML')
+    if (!maverick.rawSchema && renderedSchema) issues.push('Structured data is JavaScript-injected and not in the raw HTML')
+    if (issues.length === 0) {
+      checks.push(makeCheck('Page rendering', 'good',
+        'Server-rendered. Googlebot sees the same content as the browser.'))
+    } else if (issues.length === 1 && !issues[0].startsWith('Page content')) {
+      checks.push(makeCheck('Page rendering', 'needs_work',
+        issues[0] + '.',
+        'Move this SEO element to server-side rendering so Googlebot can read it without executing JavaScript.'))
+    } else {
+      checks.push(makeCheck('Page rendering', 'critical',
+        issues.join('. ') + '.',
+        'Key SEO signals are hidden behind JavaScript. Googlebot may index a thin or empty page. Move to server-side rendering.'))
+    }
   }
 
   return { score: Math.min(score, 25), checks }
@@ -486,8 +515,17 @@ export async function POST(request: NextRequest) {
       renderingType = 'Estimated'
     }
 
+    const maverickData: MaverickData | undefined = renderedHtml
+      ? {
+          rawWordCount,
+          renderedWordCount,
+          rawH1: $raw('h1').length > 0,
+          rawSchema: $raw('script[type="application/ld+json"]').length > 0,
+        }
+      : undefined
+
     const [technical, onpage, content, authority] = await Promise.all([
-      scoreTechnical(url, $forScoring),
+      scoreTechnical(url, $forScoring, maverickData),
       Promise.resolve(scoreOnPage($forScoring)),
       Promise.resolve(scoreContent($forScoring, url)),
       Promise.resolve(scoreAuthority($forScoring)),
